@@ -9,9 +9,9 @@ import sys
 # ------------------ CONFIGURATION ------------------
 DEFAULT_URL_PREFIX = "Transaction"
 DEFAULT_BATCH_SIZE = 50000
-DEFAULT_START_ROWS = 10000000
+DEFAULT_START_ROWS = 0
 # DEFAULT_TOTAL_ROWS = 500000
-DEFAULT_TOTAL_ROWS = 20000000
+DEFAULT_TOTAL_ROWS = 45000000
 DEFAULT_MAX_RETRIES = 3
 DEFAULT_SLEEP = 2
 
@@ -129,7 +129,7 @@ def transfer_batches(args):
 def main():
     parser = argparse.ArgumentParser(description="Run Migration/Ingestion Job")
     parser.add_argument("--url-prefix", default=DEFAULT_URL_PREFIX, help="URL prefix for the endpoint")
-    parser.add_argument("--base-url", default="http://127.0.0.1:8005", help="Base URL of the API")
+    parser.add_argument("--base-url", default="http://127.0.0.1:8000", help="Base URL of the API")
     parser.add_argument("--start", type=int, default=DEFAULT_START_ROWS, help="Start row offset")
     parser.add_argument("--total", type=int, default=DEFAULT_TOTAL_ROWS, help="Total rows limit")
     parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Batch size")

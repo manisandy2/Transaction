@@ -597,3 +597,81 @@ def get_last_pri_id(
             status_code=500,
             detail=f"Failed to get last value for column '{column}': {str(e)}"
         )
+from datetime import datetime, date
+import pandas as pd
+import math
+
+def normalize_datetime(val):
+    if val is None:
+        return None
+
+    # NaN from pandas
+    if isinstance(val, float) and math.isnan(val):
+        return None
+
+    # Pandas Timestamp → datetime
+    if isinstance(val, pd.Timestamp):
+        return val.to_pydatetime()
+
+    # date → datetime (midnight)
+    if isinstance(val, date) and not isinstance(val, datetime):
+        return datetime.combine(val, datetime.min.time())
+
+    return val
+
+@router.get("/last-date")
+def get_last_date_value(
+    namespace: str = Query("POS_transactions"),
+    table: str = Query("Transaction"),
+    column: str = Query("created_at")
+):
+    """
+    Fetch the latest (MAX) date/timestamp from an Iceberg table
+    """
+    try:
+        catalog = get_catalog_client()
+        table_identifier = f"{namespace}.{table}"
+        iceberg_table = catalog.load_table(table_identifier)
+
+        scan = (
+            iceberg_table.scan(
+                selected_fields=[column]
+            )
+            .to_arrow()
+        )
+
+        if scan.num_rows == 0:
+            return {
+                "namespace": namespace,
+                "table": table,
+                "column": column,
+                "last_value": None
+            }
+
+        df = scan.to_pandas()
+        df[column] = pd.to_datetime(df[column], errors="coerce")
+        # raw_last_value = df[column].max()
+        df = df.dropna(subset=[column])
+
+        # last_value = normalize_datetime(raw_last_value)
+        if df.empty:
+            return {
+                "namespace": namespace,
+                "table": table,
+                "column": column,
+                "last_value": None
+            }
+
+        last_value = df[column].max()
+        return {
+            "namespace": namespace,
+            "table": table,
+            "column": column,
+            "last_value": last_value.isoformat()
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch last date value: {str(e)}"
+        )

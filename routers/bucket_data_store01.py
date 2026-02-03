@@ -7,6 +7,7 @@ from botocore.client import Config
 import time, json, boto3, os
 import os
 from core.r2_client import get_r2_client
+from core.catalog_client import get_catalog_client
 from concurrent.futures import ThreadPoolExecutor, as_completed
 MAX_WORKERS = 16
 import concurrent.futures
@@ -111,7 +112,7 @@ def get_list(
             if "Contents" in page:
                 for obj in page["Contents"]:
                     files.append(obj["Key"])
-
+                    print("data:",obj)
         print(len(files))
         return {
             "total_files": len(files),
@@ -392,6 +393,7 @@ def get_bucket_list(
         files = []
         if "Contents" in response:
             files = [obj["Key"] for obj in response["Contents"]]
+            print("files:",files)
 
         return {
             "total_files": len(files),
@@ -1112,3 +1114,142 @@ def get_serial(mobile: str, serial_no: str):
 
     except Exception as e:
         return {"error": str(e)}
+
+from dotenv import load_dotenv
+import pyarrow.json as pj
+from pyarrow.fs import S3FileSystem
+load_dotenv()
+
+@router.get("/bucket/get-bucket-list-to-save-catalog")
+
+
+# def get_list(
+#     bucket_name: str = Query("dev-transaction", title="Bucket Name",description="Bucket name (default: dev-transaction)"),
+#     bucket_path: str = Query("pos_transactions", description="Folder path in R2 (default: pos_transactions)"),
+# ):
+#     r2_client = get_r2_client()
+#     prefix = f"{bucket_path.rstrip('/')}/"
+#
+#     # ✅ PyArrow S3 filesystem (Cloudflare R2)
+#     fs = S3FileSystem(
+#         endpoint_override=os.getenv("ENDPOINT"),
+#         access_key=os.getenv("ACCESS_KEY_ID"),
+#         secret_key=os.getenv("SECRET_ACCESS_KEY"),
+#         region="auto",
+#         scheme="https"
+#     )
+#
+#     try:
+#         paginator = r2_client.get_paginator("list_objects_v2")
+#         files = []
+#
+#         for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+#             if "Contents" in page:
+#                 for obj in page["Contents"]:
+#                     json_path = f"{bucket_name}/{key}"
+#                     files.append(obj["Key"])
+#                     print("data:",obj["Key"])
+#                     json_path = obj["Key"]
+#                     with fs.open_input_file(json_path) as f:
+#                         arrow_table = pj.read_json(f)
+#                         print(arrow_table)
+#
+#         return {
+#             "total_files": len(files),
+#             # "files": files  # you can remove this if too large
+#         }
+#
+#     except Exception as e:
+#         return {"error": str(e)}
+
+@router.get("/bucket/get-bucket-list-to-save-catalog")
+def get_list(
+    # bucket_name: str = Query("dev-transaction"),
+    # bucket_path: str = Query("pos_transactions"),
+):
+    bucket_name = "pos-transaction-imei-test"
+    bucket_path = "history/2026/01/27"
+
+
+    # -----------------------------
+    # Arrow FS (Cloudflare R2)
+    # -----------------------------
+    r2_client = boto3.client(
+        "s3",
+        endpoint_url=os.getenv("ENDPOINT"),
+        aws_access_key_id=os.getenv("ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("SECRET_ACCESS_KEY"),
+        region_name="auto",
+    )
+    prefix = f"{bucket_path.rstrip('/')}/"
+
+    fs = S3FileSystem(
+        endpoint_override=os.getenv("ENDPOINT"),
+        access_key=os.getenv("ACCESS_KEY_ID"),
+        secret_key=os.getenv("SECRET_ACCESS_KEY"),
+        region="auto",
+        scheme="https",
+    )
+
+    catalog  = get_catalog_client()
+    table = catalog.load_table("POS_Transactions.Transaction_27_01_2026")
+
+    paginator = r2_client.get_paginator("list_objects_v2")
+
+    total_files = 0
+    success_files = 0
+    failed_files = []
+    i = 0
+    try:
+        for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+            if "Contents" not in page:
+                continue
+
+            for obj in page["Contents"]:
+                key = obj["Key"]
+
+                # ❌ skip folders
+                if key.endswith("/"):
+                    continue
+
+                # ❌ skip non-json
+                if not key.endswith(".json"):
+                    continue
+
+                total_files += 1
+
+                # ✅ FULL PATH (bucket + key)
+                json_path = f"{bucket_name}/{key}"
+
+                try:
+                    with fs.open_input_file(json_path) as f:
+                        arrow_table = pj.read_json(f)
+
+                        # print("store_code",arrow_table[0])
+                        # print("billed_at_branch_name",arrow_table[1])
+                    # ✅ Append to Iceberg
+                    # print("arrow_table:",arrow_table)
+                    i += 1
+                    table.append(arrow_table)
+                    print("append sucess")
+                    success_files += 1
+                    if i == 10:
+                        break
+
+
+                except Exception as file_err:
+                    failed_files.append({
+                        "file": key,
+                        "error": str(file_err)
+                    })
+
+        return {
+            "bucket": bucket_name,
+            "prefix": prefix,
+            "total_files": total_files,
+            "success_files": success_files,
+            "failed_files": failed_files,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

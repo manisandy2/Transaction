@@ -1,13 +1,3 @@
-
-# from packaging.metadata import Metadata
-
-# from packaging.version import Version
-# from mysql_catalog import MysqlCatalog
-
-# from creds import Creds
-# from .creds import Creds
-
-# from .creds import get_r2_client
 from fastapi import FastAPI, Query, HTTPException
 # from routers import namespace.router
 import json
@@ -23,13 +13,14 @@ from routers import transaction as data_insert
 from routers import filters as filters
 from routers import multipart as multipart_data
 from routers import parquet as parquet_table
+from routers import columns as columns
 # from routers import avro as avro_files
 
 from routers import schema as schema_schema
 from routers import Inspecting_tables as Inspecting_tables
 from routers import partition as partition_schema
 from routers import error_records
-
+from core.mysql_client import MysqlCatalog
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +44,7 @@ app.include_router(transaction_table.router)
 app.include_router(transaction_meta_data.router)
 app.include_router(data_insert.router)
 app.include_router(filters.router)
+app.include_router(columns.router)
 app.include_router(multipart_data.router)
 app.include_router(parquet_table.router)
 # app.include_router(avro_files.router)

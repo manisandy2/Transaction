@@ -1,23 +1,19 @@
 from fastapi import FastAPI, APIRouter, Query, HTTPException,Body
-from packaging.metadata import Metadata
-from pyiceberg.catalog import load_catalog
-from pyiceberg.schema import Schema, NestedField
-from pyiceberg.types import StringType, LongType, DateType,TimestampType
 import time, json, boto3, os
 import io
 from botocore.client import Config
 import logging
 import time
-from ...mysql_creds import *
+# from ...mysql_creds import *
 from pyiceberg.partitioning import PartitionSpec, PartitionField
 from pyiceberg.transforms import IdentityTransform
 from datetime import datetime
-from ...mapping import *
+# from ...mapping import *
 from pyiceberg.exceptions import NoSuchNamespaceError, NoSuchTableError
 from sqlalchemy.sql.sqltypes import NullType
-from ...core.r2_client import get_r2_client
+from ..core.r2_client import get_r2_client
 import pandas as pd
-from ...core.catalog_client import get_catalog_client
+# from ...core.catalog_client import get_catalog_client
 from fastapi import APIRouter,Query,HTTPException
 
 app = FastAPI()
@@ -85,7 +81,6 @@ def fetch_json_from_r2(key: str):
         print(f"⚠️ Error fetching key {key} from R2: {e}")
         return None
 
-
 def make_json_serializable(record: dict) -> dict:
     """Convert all datetime objects in the record to ISO strings"""
     serializable = {}
@@ -109,7 +104,6 @@ def safe_parse_date(value):
             continue
     return None
 
-
 def load_r2_json(bucket: str, key: str):
     """Read JSON (list or dict) from R2 and normalize to list."""
     try:
@@ -127,7 +121,6 @@ def load_r2_json(bucket: str, key: str):
     except Exception as e:
         print(f"⚠️ Error loading {key}: {e}")
         return []
-
 
 def list_r2_objects(prefix: str):
     print(f"Listing objects under prefix: {prefix}")
@@ -1048,7 +1041,7 @@ def get_by_phone_year_month(customer_mobile: str):
         raise HTTPException(status_code=500, detail=f"Error listing R2 objects: {e}")
 
 
-@router.delete("/delete-fileses")
+@router.delete("/delete-files")
 def delete_files(
         bucket_name: str = Query(..., title="Bucket Name",description="Bucket name (default:dev-transaction)"),
         bucket_path: str = Query("pos_transactions", description="Folder path in R2 (default: pos_transactions)"),
