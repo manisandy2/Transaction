@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-LOG_FILE = "logs/Transaction_ingestion.log"
+LOG_FILE = "logs_backup/Transaction_ingestion.log"
 
 def get_logger(name: str):
     logger = logging.getLogger(name)

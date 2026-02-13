@@ -10,6 +10,7 @@ from routers import bucket_data_store01 as transaction_bds
 from routers import table as transaction_table
 from routers import meta_data as transaction_meta_data
 from routers import transaction as data_insert
+from routers import date_transaction as date_insert
 from routers import filters as filters
 from routers import multipart as multipart_data
 from routers import parquet as parquet_table
@@ -43,6 +44,7 @@ app.include_router(transaction_bds.router)
 app.include_router(transaction_table.router)
 app.include_router(transaction_meta_data.router)
 app.include_router(data_insert.router)
+app.include_router(date_insert.router)
 app.include_router(filters.router)
 app.include_router(columns.router)
 app.include_router(multipart_data.router)

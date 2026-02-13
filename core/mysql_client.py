@@ -75,6 +75,17 @@ class MysqlCatalog:
             print(f"MySQL fetch error in get_range_ph_bi: {e}")
             return []
 
+    def get_date_range(self, dbname, start_date, end_date, offset, limit):
+        query = f"""
+            SELECT *
+            FROM `{dbname}`
+            WHERE created_At BETWEEN %s AND %s
+            ORDER BY created_At ASC
+            LIMIT %s OFFSET %s
+        """
+        self.cursor.execute(query, (start_date, end_date, limit, offset))
+        return self.cursor.fetchall()
+
     def close(self):
         if self.cursor:
             self.cursor.close()

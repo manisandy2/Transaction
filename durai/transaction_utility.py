@@ -550,12 +550,11 @@ transaction_schema = [
         # NestedField(201, "bill_datetime", DateType()),
         NestedField(200, "created_At", TimestampType()),
         NestedField(201, "bill_datetime", TimestampType()),
-        NestedField(202, "batch_id", StringType()),
     ]
 
 FIELD_OVERRIDES = {
     # REQUIRED
-    "pri_id": (LongType(), pa.int64(), True),
+    "pri_id": (StringType(), pa.string(), True),
 
     "IsDeleted": (LongType(), pa.int64(), False),
 

@@ -287,7 +287,7 @@ def get_list(
 # ):
 #     """
 #     Fetch records from MySQL and upload each as JSON to R2.
-#     Includes batch-based parallelism and detailed time logs.
+#     Includes batch-based parallelism and detailed time logs_backup.
 #     """
 #
 #     if end_range <= start_range:

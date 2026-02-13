@@ -9,7 +9,7 @@ import sys
 # ------------------ CONFIGURATION ------------------
 DEFAULT_URL_PREFIX = "Transaction"
 DEFAULT_BATCH_SIZE = 50000
-DEFAULT_START_ROWS = 0
+DEFAULT_START_ROWS = 37400000
 # DEFAULT_TOTAL_ROWS = 500000
 DEFAULT_TOTAL_ROWS = 45000000
 DEFAULT_MAX_RETRIES = 3
@@ -17,7 +17,7 @@ DEFAULT_SLEEP = 2
 
 # ------------------ LOGGING SETUP ------------------
 def setup_logging(url_prefix):
-    log_dir = "logs"
+    log_dir = "logs_var"
     os.makedirs(log_dir, exist_ok=True)
 
     success_log_file = os.path.join(log_dir, f"success_{url_prefix}-live.log")

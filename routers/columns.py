@@ -35,6 +35,59 @@ def get_iceberg_type(type_str: str):
     else:
         raise ValueError(f"Unsupported Iceberg type: {type_str}")
 
+@router.put("/add-column")
+def add_column(
+    column_name: str = Query(..., description="New column name"),
+    column_type: str = Query(..., description="Iceberg column type (required)"),
+    doc: Optional[str] = Query(None, description="Column description (optional)"),
+    namespace: str = Query(...),
+    table_name: str = Query(...)
+):
+    """
+    Add a new column to an existing Iceberg table.
+    No data rewrite.
+    """
+
+    try:
+        catalog = get_catalog_client()
+        identifier = f"{namespace}.{table_name}"
+        table = catalog.load_table(identifier)
+
+        # ---- Check if column already exists ----
+        existing_field = next(
+            (f for f in table.schema().fields if f.name == column_name),
+            None
+        )
+
+        if existing_field:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Column '{column_name}' already exists."
+            )
+
+        # ---- Get Iceberg Type ----
+        iceberg_type = get_iceberg_type(column_type)
+
+        # ---- Add Column ----
+        with table.update_schema() as update:
+            update.add_column(column_name, iceberg_type, doc=doc)
+
+        logger.info(
+            f"Column added | table={identifier} "
+            f"column={column_name} type={column_type}"
+        )
+
+        return {
+            "status": "success",
+            "message": f"Column '{column_name}' added successfully.",
+            "table": identifier
+        }
+
+    except Exception as e:
+        logger.exception(f"Add column failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Internal server error: {str(e)}")
 
 # @router.put("/update_column_with_data_copy")
 # def update_column_with_data_copy(
@@ -97,6 +150,7 @@ def get_iceberg_type(type_str: str):
 #     except Exception as e:
 #         logger.exception(f"Failed to update and copy data: {e}")
 #         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+
 # @router.put("/update_column_with_data_copy")
 # def update_column_with_data_copy(
 #     column_name: str = Query(...),
