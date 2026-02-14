@@ -12,8 +12,11 @@ from pyiceberg.catalog import NoSuchTableError
 from core.logger import get_logger
 from error_handler import handle_ingestion_error
 from read_bucket import list_json_files
+from core.r2_client import get_r2_client
+import json
 
 logger = get_logger(__name__)
+
 #
 # def insert_transaction_between_range():
 #     # Configuration
@@ -799,42 +802,209 @@ logger = get_logger(__name__)
 #     print(rr['success'])
 
 #########
+#
+# def extract_rows_from_json(raw_data):
+#     """
+#     Handles:
+#     - List of dict  → already row format
+#     - {"data": [...]} → extract list
+#     - Column format  → convert to rows
+#     """
+#     print(f"raw_data: {raw_data}")
+#     print(f"raw_data: {raw_data}")
+#     # Case 1: Already row format
+#     if isinstance(raw_data, list):
+#         return raw_data
+#
+#     # Case 2: Nested list inside dict
+#     if isinstance(raw_data, dict):
+#
+#         if "data" in raw_data and isinstance(raw_data["data"], list):
+#             return raw_data["data"]
+#
+#         # Column-based JSON
+#         return convert_column_json_to_rows(raw_data)
+#
+#     return []
+#
+# def convert_column_json_to_rows(data: dict) -> list:
+#     """
+#     Convert column-oriented JSON into row-oriented list of dict.
+#     Handles:
+#     - [[...]]
+#     - [...]
+#     - scalar values
+#     """
+#
+#
+#     if not isinstance(data, dict):
+#         return []
+#
+#     cleaned = {}
+#
+#     for key, value in data.items():
+#
+#         # unwrap [[...]]
+#         if isinstance(value, list) and len(value) == 1 and isinstance(value[0], list):
+#             cleaned[key] = value[0]
+#
+#         elif isinstance(value, list):
+#             cleaned[key] = value
+#
+#         else:
+#             cleaned[key] = value
+#
+#     list_lengths = [
+#         len(v) for v in cleaned.values()
+#         if isinstance(v, list)
+#     ]
+#
+#     if not list_lengths:
+#         return []
+#
+#     row_count = max(list_lengths)
+#
+#     rows = []
+#
+#     for i in range(row_count):
+#         row = {}
+#
+#         for col, values in cleaned.items():
+#             if isinstance(values, list):
+#                 row[col] = values[i] if i < len(values) else None
+#             else:
+#                 row[col] = values
+#
+#         rows.append(row)
+#         print("all_data",rows)
+#     return rows
+#
+# from core.r2_client import get_r2_client
+# import json
+#
+# def insert_transaction_between_range():
+#
+#     namespace = "POS_Transactions"
+#     table_name = "Transaction_vars_2026-02-13"
+#     bucket = "pos-transaction-imei"
+#     prefix = "history/2026/01/29/"
+#     batch_size = 100
+#
+#     start_time = time.time()
+#
+#     # -----------------------------
+#     # 1. Load Iceberg Table
+#     # -----------------------------
+#     catalog = get_catalog_client()
+#     table = catalog.load_table(f"{namespace}.{table_name}")
+#     arrow_schema = table.schema().as_arrow()
+#
+#     # -----------------------------
+#     # 2. Load existing pri_ids
+#     # -----------------------------
+#     # try:
+#     #     existing_ids = set(
+#     #         table.scan(selected_fields=["pri_id"])
+#     #              .to_arrow()["pri_id"]
+#     #              .to_pylist()
+#     #     )
+#     # except Exception:
+#     #     existing_ids = set()
+#
+#     # -----------------------------
+#     # 3. List R2 Files
+#     # -----------------------------
+#     keys = list_json_files(prefix=prefix, bucket=bucket)
+#     if not keys:
+#         return {"success": True, "message": "No files found"}
+#
+#     rows = []
+#     seen_ids = set()
+#     files_processed = 0
+#
+#     for key in keys[:batch_size]:
+#
+#         obj = get_r2_client().get_object(Bucket=bucket, Key=key)
+#         raw_data = json.loads(obj["Body"].read())
+#
+#         # print("raw_data type:", type(raw_data))
+#         if isinstance(raw_data, dict):
+#             pri_id = raw_data.get("pri_id")
+#
+#             if pri_id and pri_id not in seen_ids:
+#                 rows.append(raw_data)
+#                 seen_ids.add(pri_id)
+#         files_processed += 1
+#
+#
+#     if not rows:
+#         return {
+#             "success": True,
+#             "message": "No new records found",
+#             "time_taken_sec": round(time.time() - start_time, 2)
+#         }
+#
+#     # -----------------------------
+#     # 4. Clean Rows
+#     # -----------------------------
+#     rows = clean_rows(
+#         rows=rows,
+#         boolean_fields=BOOLEAN_FIELDS,
+#         timestamps_fields=TIMESTAMP_FIELDS,
+#         field_overrides=FIELD_OVERRIDES
+#     )
+#
+#     # -----------------------------
+#     # 5. Convert to Arrow
+#     # -----------------------------
+#     print("rows",rows)
+#     print("arrow_schema",arrow_schema)
+#     arrow_table, conversion_errors = process_chunk(rows, arrow_schema)
+#
+#     if arrow_table and arrow_table.num_rows > 0:
+#         table.append(arrow_table)
+#
+#     return {
+#         "success": True,
+#         "files_processed": files_processed,
+#         "rows_inserted": arrow_table.num_rows,
+#         "time_taken_sec": round(time.time() - start_time, 2)
+#     }
+#
+# dd = insert_transaction_between_range()
+# print(dd)
+
 
 def extract_rows_from_json(raw_data):
     """
-    Handles:
-    - List of dict  → already row format
-    - {"data": [...]} → extract list
-    - Column format  → convert to rows
+    Convert different JSON formats into list[dict]
     """
-    print(f"raw_data: {raw_data}")
-    print(f"raw_data: {raw_data}")
-    # Case 1: Already row format
+    # print("start process")
+    # Case 1: Already list of rows
     if isinstance(raw_data, list):
+        # print("list")
         return raw_data
 
-    # Case 2: Nested list inside dict
-    if isinstance(raw_data, dict):
-
-        if "data" in raw_data and isinstance(raw_data["data"], list):
+    # Case 2: {"data": [...]}
+    if isinstance(raw_data, dict) and "data" in raw_data:
+        # print("dict")
+        if isinstance(raw_data["data"], list):
             return raw_data["data"]
 
-        # Column-based JSON
+    # Case 3: Column-based JSON
+    if isinstance(raw_data, dict):
+        # print("dict 01")
         return convert_column_json_to_rows(raw_data)
 
     return []
 
-def convert_column_json_to_rows(data: dict) -> list:
-    """
-    Convert column-oriented JSON into row-oriented list of dict.
-    Handles:
-    - [[...]]
-    - [...]
-    - scalar values
-    """
 
+def convert_column_json_to_rows(data: dict) -> list:
+
+    # print("convert column json to rows")
 
     if not isinstance(data, dict):
+        # print("is not dict")
         return []
 
     cleaned = {}
@@ -844,20 +1014,21 @@ def convert_column_json_to_rows(data: dict) -> list:
         # unwrap [[...]]
         if isinstance(value, list) and len(value) == 1 and isinstance(value[0], list):
             cleaned[key] = value[0]
-
-        elif isinstance(value, list):
-            cleaned[key] = value
-
         else:
             cleaned[key] = value
 
+    # Detect column-style lists
     list_lengths = [
         len(v) for v in cleaned.values()
         if isinstance(v, list)
     ]
 
+    # print("list_lengths:", list_lengths)
+
+    # 🔥 FIX: If no list found → treat as single row
     if not list_lengths:
-        return []
+        # print("No column lists found → treating as single row")
+        return [cleaned]
 
     row_count = max(list_lengths)
 
@@ -867,108 +1038,149 @@ def convert_column_json_to_rows(data: dict) -> list:
         row = {}
 
         for col, values in cleaned.items():
+
             if isinstance(values, list):
                 row[col] = values[i] if i < len(values) else None
             else:
                 row[col] = values
 
         rows.append(row)
-        print("all_data",rows)
+
     return rows
 
-from core.r2_client import get_r2_client
-import json
 
 def insert_transaction_between_range():
 
     namespace = "POS_Transactions"
-    table_name = "Transaction_vars_2026-02-13"
+    table_name = "Transaction_vars_2026-02-14"
     bucket = "pos-transaction-imei"
     prefix = "history/2026/01/29/"
-    batch_size = 100
+    batch_size = 200
 
     start_time = time.time()
 
-    # -----------------------------
-    # 1. Load Iceberg Table
-    # -----------------------------
+    # ------------------------------------------------
+    # 1. Load Iceberg table
+    # ------------------------------------------------
     catalog = get_catalog_client()
     table = catalog.load_table(f"{namespace}.{table_name}")
     arrow_schema = table.schema().as_arrow()
 
-    # -----------------------------
-    # 2. Load existing pri_ids
-    # -----------------------------
-    # try:
-    #     existing_ids = set(
-    #         table.scan(selected_fields=["pri_id"])
-    #              .to_arrow()["pri_id"]
-    #              .to_pylist()
-    #     )
-    # except Exception:
-    #     existing_ids = set()
+    # ------------------------------------------------
+    # 2. Load existing pri_ids from Iceberg
+    # ------------------------------------------------
+    try:
+        existing_ids = set(
+            table.scan(selected_fields=["pri_id"])
+                 .to_arrow()["pri_id"]
+                 .to_pylist()
+        )
 
-    # -----------------------------
-    # 3. List R2 Files
-    # -----------------------------
-    keys = list_json_files(prefix=prefix, bucket=bucket)
+    except Exception:
+        existing_ids = set()
+
+    print(f"Loaded {len(existing_ids)} existing IDs")
+
+    # ------------------------------------------------
+    # 3. List R2 files
+    # ------------------------------------------------
+    keys = list_json_files(bucket=bucket, prefix=prefix)
     if not keys:
         return {"success": True, "message": "No files found"}
 
-    rows = []
-    seen_ids = set()
-    files_processed = 0
+    total_inserted = 0
+    total_files = len(keys)
 
-    for key in keys[:batch_size]:
+    # ------------------------------------------------
+    # 4. Process in batches
+    # ------------------------------------------------
+    for i in range(0, total_files, batch_size):
 
-        obj = get_r2_client().get_object(Bucket=bucket, Key=key)
-        raw_data = json.loads(obj["Body"].read())
+        batch_keys = keys[i:i + batch_size]
+        batch_rows = []
+        seen_batch_ids = set()
+        # print(keys)
+        # Download parallel
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = [
+                executor.submit(get_r2_client().get_object, Bucket=bucket, Key=key)
+                for key in batch_keys
+            ]
 
-        # print("raw_data type:", type(raw_data))
-        if isinstance(raw_data, dict):
-            pri_id = raw_data.get("pri_id")
+            for future in as_completed(futures):
+                try:
+                    obj = future.result()
+                    raw_data = json.loads(obj["Body"].read())
+                    # print("raw-data",raw_data)
+                    rows_from_file = extract_rows_from_json(raw_data)
+                    # print("return-data:",rows_from_file)
+                    for row in rows_from_file:
 
-            if pri_id and pri_id not in seen_ids:
-                rows.append(raw_data)
-                seen_ids.add(pri_id)
-        files_processed += 1
+                        pri_id = row.get("pri_id")
+                        if not pri_id:
+                            continue
 
+                        # Skip if duplicate inside batch
+                        if pri_id in seen_batch_ids:
+                            continue
 
-    if not rows:
-        return {
-            "success": True,
-            "message": "No new records found",
-            "time_taken_sec": round(time.time() - start_time, 2)
-        }
+                        # Skip if already in Iceberg
+                        if pri_id in existing_ids:
+                            continue
 
-    # -----------------------------
-    # 4. Clean Rows
-    # -----------------------------
-    rows = clean_rows(
-        rows=rows,
-        boolean_fields=BOOLEAN_FIELDS,
-        timestamps_fields=TIMESTAMP_FIELDS,
-        field_overrides=FIELD_OVERRIDES
-    )
+                        batch_rows.append(row)
+                        seen_batch_ids.add(pri_id)
 
-    # -----------------------------
-    # 5. Convert to Arrow
-    # -----------------------------
-    print("rows",rows)
-    print("arrow_schema",arrow_schema)
-    arrow_table, conversion_errors = process_chunk(rows, arrow_schema)
-    # print("arrow_table:",arrow_table["pri_id"])
-    # for r in arrow_table["pri_id"]:
-    #     print("data:",r)
-    if arrow_table and arrow_table.num_rows > 0:
-        table.append(arrow_table)
+                except Exception as e:
+                    print(f"File processing error: {e}")
+
+        if not batch_rows:
+            continue
+
+        # ------------------------------------------------
+        # 5. Clean rows
+        # ------------------------------------------------
+        cleaned = clean_rows(
+            rows=batch_rows,
+            boolean_fields=BOOLEAN_FIELDS,
+            timestamps_fields=TIMESTAMP_FIELDS,
+            field_overrides=FIELD_OVERRIDES
+        )
+
+        if not cleaned:
+            continue
+
+        # ------------------------------------------------
+        # 6. Convert to Arrow
+        # ------------------------------------------------
+        print("cleaned")
+        print(cleaned)
+
+        arrow_table, errors = process_chunk(cleaned, arrow_schema)
+        print("Before append rows:", arrow_table.num_rows)
+        print(
+            arrow_table.column("pri_id").to_pylist()
+        )
+        if arrow_table and arrow_table.num_rows > 0:
+            # print("Before append rows:", arrow_table.num_rows)
+            table.append(arrow_table)
+            total_inserted += arrow_table.num_rows
+
+            # Update dedupe cache
+            existing_ids.update(
+                arrow_table.column("pri_id").to_pylist()
+            )
+
+            print(f"Inserted {arrow_table.num_rows} rows")
 
     return {
         "success": True,
-        "files_processed": files_processed,
-        "rows_inserted": arrow_table.num_rows,
+        "files_processed": total_files,
+        "rows_inserted": total_inserted,
         "time_taken_sec": round(time.time() - start_time, 2)
     }
 
-dd = insert_transaction_between_range()
-print(dd)
+
+if __name__ == "__main__":
+    result = insert_transaction_between_range()
+    print(result)

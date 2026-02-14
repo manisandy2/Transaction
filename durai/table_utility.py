@@ -219,6 +219,6 @@ def process_chunk(chunk: List[Dict[str, Any]], arrow_schema: pa.Schema) -> Tuple
                 converted_row[field.name] = None
                 row_has_error = True
 
-            processed_rows.append(converted_row)
+        processed_rows.append(converted_row)
 
     return pa.Table.from_pylist(processed_rows, schema=arrow_schema), row_errors
