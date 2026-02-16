@@ -6,7 +6,7 @@ import time
 import os
 import pyarrow.parquet as pq
 import pyarrow.fs as fs
-
+# import pyarrow.fs as fs
 
 router = APIRouter(prefix="", tags=["parquet"])
 
@@ -67,6 +67,123 @@ def list_parquet(
         "time_seconds": round(time.perf_counter() - start, 3) 
     }
 
+# @router.get("/parquet/download-all")
+# def download_all_parquet(
+#     namespace: str = Query("POS_Transactions"),
+#     table_name: str = Query("Transaction"),
+#     local_dir: str = Query("downloads/parquet/"),
+# ):
+#     """
+#     Download all parquet data files of Iceberg table to local directory.
+#     """
+#
+#     start = time.perf_counter()
+#     catalog = get_catalog_client()
+#
+#     try:
+#         table = catalog.load_table(f"{namespace}.{table_name}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Load table failed: {str(e)}")
+#
+#     snapshot = table.current_snapshot()
+#     if not snapshot:
+#         return {"message": "No snapshot found"}
+#
+#     os.makedirs(local_dir, exist_ok=True)
+#
+#     downloaded_files = 0
+#     total_bytes = 0
+#
+#     for manifest in snapshot.manifests(table.io):
+#         entries = manifest.fetch_manifest_entry(table.io)
+#
+#         for entry in entries:
+#             data_file = entry.data_file
+#             file_path = data_file.file_path
+#
+#             # Extract file name
+#             file_name = os.path.basename(file_path)
+#             local_path = os.path.join(local_dir, file_name)
+#
+#             # Download using Iceberg IO
+#             with table.io.new_input(file_path) as f_in:
+#                 with open(local_path, "wb") as f_out:
+#                     content = f_in.read()
+#                     f_out.write(content)
+#
+#             downloaded_files += 1
+#             total_bytes += data_file.file_size_in_bytes
+#
+#     return {
+#         "files_downloaded": downloaded_files,
+#         "total_size_mb": round(total_bytes / (1024 * 1024), 2),
+#         "time_seconds": round(time.perf_counter() - start, 3)
+#     }
+
+# @router.get("/parquet/download")
+# def download_parquet_files(
+#     namespace: str = Query("POS_Transactions"),
+#     table_name: str = Query("Transaction"),
+#     local_dir: str = Query("downloads/parquet/"),
+#     limit: int = Query(10, ge=1, le=100),
+# ):
+#     import time
+#     import os
+#
+#     start = time.perf_counter()
+#     os.makedirs(local_dir, exist_ok=True)
+#
+#     catalog = get_catalog_client()
+#     r2 = get_r2_client()
+#
+#     try:
+#         table = catalog.load_table(f"{namespace}.{table_name}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+#
+#     snapshot = table.current_snapshot()
+#     if not snapshot:
+#         return {"message": "No snapshot found"}
+#
+#     downloaded = 0
+#     total_bytes = 0
+#
+#     for manifest in snapshot.manifests(table.io):
+#
+#         if downloaded >= limit:
+#             break
+#
+#         for entry in manifest.fetch_manifest_entry(table.io):
+#
+#             if downloaded >= limit:
+#                 break
+#
+#             data_file = entry.data_file
+#             full_path = data_file.file_path
+#             # Example: s3://bucket-name/path/to/file.parquet
+#
+#             # 🔥 Extract bucket + key
+#             path_without_prefix = full_path.replace("s3://", "")
+#             bucket, key = path_without_prefix.split("/", 1)
+#
+#             file_name = os.path.basename(key)
+#             local_path = os.path.join(local_dir, file_name)
+#
+#             try:
+#                 r2.download_file(bucket, key, local_path)
+#
+#                 downloaded += 1
+#                 total_bytes += data_file.file_size_in_bytes
+#
+#             except Exception as e:
+#                 raise HTTPException(status_code=500, detail=str(e))
+#
+#     return {
+#         "files_downloaded": downloaded,
+#         "total_size_mb": round(total_bytes / (1024 * 1024), 2),
+#         "limit_requested": limit,
+#         "time_seconds": round(time.perf_counter() - start, 3),
+#     }
 
 # @router.get("/parquet/read")
 # def read_parquet(
