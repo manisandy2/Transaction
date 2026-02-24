@@ -295,7 +295,7 @@ def read_parquet(
 #         # Memory safe read using ParquetFile
 #         pq_file = pq.ParquetFile(path, filesystem=s3fs)
 #
-#         # Read the first batch to get sample data and schema
+#         # Read the first batch to get sample data and schema-data
 #         # If limit is small, this might be enough.
 #         # For this endpoint, we will just read up to 'limit' rows total.
 #
