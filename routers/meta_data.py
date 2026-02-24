@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-import boto3
 import os
 from core.r2_client import get_r2_client
 
