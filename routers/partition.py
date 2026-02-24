@@ -1,33 +1,11 @@
 from fastapi import APIRouter, Query, HTTPException
-from pygments.lexer import default
-from pyiceberg.catalog import load_catalog
-from pyiceberg.transforms import IdentityTransform, YearTransform, MonthTransform, DayTransform, HourTransform, BucketTransform, TruncateTransform
 from pyiceberg.exceptions import NoSuchTableError, ValidationError
 from core.catalog_client import get_catalog_client
+from .iceberg_utility import get_transform
 
-router = APIRouter(prefix="", tags=["Partition"])
+router = APIRouter(prefix="/Partition", tags=["Partition"])
 
-# Helper: Map string -> Iceberg Transform
-def get_transform(transform: str, arg: int | None = None):
-    transform = transform.lower()
-    if transform == "identity":
-        return IdentityTransform()
-    elif transform == "year":
-        return YearTransform()
-    elif transform == "month":
-        return MonthTransform()
-    elif transform == "day":
-        return DayTransform()
-    elif transform == "hour":
-        return HourTransform()
-    elif transform.startswith("bucket"):
-        return BucketTransform(arg or 16)
-    elif transform.startswith("truncate"):
-        return TruncateTransform(arg or 4)
-    else:
-        raise ValueError(f"Unsupported transform: {transform}")
-
-@router.get("/Partition/list")
+@router.get("/list")
 def list_partitions(
     namespace: str = Query("POS_transactions", description="Namespace name"),
     table_name: str = Query("Transaction", description="Table name")
@@ -76,7 +54,7 @@ def list_partitions(
 
 
 # ✅ CREATE / ADD PARTITION SPEC
-@router.post("/Partition/create")
+@router.post("/create")
 def create_partition(
     namespace: str = Query("POS_transactions", description="Namespace"),
     table_name: str = Query("Transaction", description="Table name"),
@@ -113,7 +91,7 @@ def create_partition(
 
 
 
-@router.put("/Partition/update")
+@router.put("/update")
 def update_partition(
     namespace: str = Query("POS_transactions", description="Namespace"),
     table_name: str = Query("Transaction", description="Table name"),
@@ -152,7 +130,7 @@ def update_partition(
 
 
 # ❌ DELETE PARTITION SPEC
-@router.delete("/Partition/delete")
+@router.delete("/delete")
 def delete_partition(
     namespace: str = Query("POS_transactions", description="Namespace"),
     table_name: str = Query("Transaction", description="Table name"),
