@@ -1,15 +1,14 @@
 from fastapi import APIRouter,Query,HTTPException
 from .transaction_utility import transaction_schema
 from core.catalog_client import get_catalog_client
-from pyiceberg.schema import Schema
 from pyiceberg.partitioning import PartitionSpec,PartitionField
-from pyiceberg.transforms import YearTransform, MonthTransform, IdentityTransform,BucketTransform
-from pyiceberg.types import *
+from pyiceberg.transforms import YearTransform
+from .dump_utility import *
 from pyiceberg.catalog import NoSuchNamespaceError,NamespaceAlreadyExistsError,TableAlreadyExistsError,NoSuchTableError
 
-router = APIRouter(prefix="", tags=["Tables"])
+router = APIRouter(prefix="/table", tags=["Tables"])
 
-@router.get("/table/list")
+@router.get("/list")
 def get_tables(
         namespace: str = Query(..., description="Namespace to list tables from"),
 ):
@@ -25,14 +24,14 @@ def get_tables(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list tables in namespace '{namespace}': {str(e)}")
 
-@router.post("/table/create")
+@router.post("/create")
 def create_transaction(
         namespace: str = Query("POS_transactions"),
         table_name: str = Query("Transaction", description="Table name"),
 ):
     table_identifier = f"{namespace}.{table_name}"
 
-    # Step 1: Define Iceberg schema
+    # Step 1: Define Iceberg schema-data
 
     transaction_data_schema = Schema(*transaction_schema)
 
@@ -125,7 +124,142 @@ def create_transaction(
         raise HTTPException(status_code=500, detail=f"Table creation failed: {str(e)}")
 
 
-@router.post("/table/rename")
+@router.post("/create-bill-header")
+def create_transaction(
+        namespace: str = Query("POS_transactions"),
+        table_name: str = Query("bill_header", description="Table name"),
+):
+    table_identifier = f"{namespace}.{table_name}"
+    transaction_data_schema = Schema(*bill_header_schema)
+
+    transaction_partition_spec = PartitionSpec(
+        PartitionField(
+            source_id=transaction_data_schema.find_field("bill_date").field_id,
+            field_id=1001,
+            transform=YearTransform(),
+            name="year",
+        ),
+    )
+
+    catalog = get_catalog_client()
+
+    try:
+        catalog.load_namespace_properties(namespace)
+    except NoSuchNamespaceError:
+        catalog.create_namespace(namespace)
+    except NamespaceAlreadyExistsError:
+        pass
+
+
+    try:
+        tbl = catalog.create_table(
+            identifier=table_identifier,
+            schema=transaction_data_schema,
+            partition_spec=transaction_partition_spec,
+            properties={
+                "format-version": "2",  # <-- mandatory
+                "table-type": "MERGE_ON_READ",  # <-- enable merge-on-read
+                "identifier-field-ids": "1",
+                "write.format.default": "parquet",
+                "write.parquet.compression-codec": "zstd",
+                "write.partition.path-style": "hierarchical",   # hierarchical & directory
+                "write.sort.order": "batch_id ASC, store_code, bill_no, bill_date",
+                "write.target-file-size-bytes": "268435456"
+            },
+        )
+        print(f"✅ Created Iceberg table: {table_identifier}")
+
+        # Step 6: Return confirmation
+        return {
+            "status": "created",
+            "table": table_identifier,
+            "schema_fields": [f.name for f in transaction_data_schema.fields],
+
+        }
+
+    except TableAlreadyExistsError:
+
+        table = catalog.load_table(table_identifier)
+        snapshot = table.current_snapshot()
+        total_records = snapshot.summary.get("total-records", 0) if snapshot else 0
+
+        return {
+            "status": "exists",
+            "table": table_identifier,
+            "total_records": total_records
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Table creation failed: {str(e)}")
+
+@router.post("/create-bill-items")
+def create_transaction(
+        namespace: str = Query("POS_transactions"),
+        table_name: str = Query("bill_items", description="Table name"),
+):
+    table_identifier = f"{namespace}.{table_name}"
+    transaction_data_schema = Schema(*bill_items_schema)
+
+    transaction_partition_spec = PartitionSpec(
+        PartitionField(
+            source_id=transaction_data_schema.find_field("bill_date").field_id,
+            field_id=1001,
+            transform=YearTransform(),
+            name="year",
+        ),
+    )
+
+    catalog = get_catalog_client()
+
+    try:
+        catalog.load_namespace_properties(namespace)
+    except NoSuchNamespaceError:
+        catalog.create_namespace(namespace)
+    except NamespaceAlreadyExistsError:
+        pass
+
+
+    try:
+        tbl = catalog.create_table(
+            identifier=table_identifier,
+            schema=transaction_data_schema,
+            partition_spec=transaction_partition_spec,
+            properties={
+                "format-version": "2",  # <-- mandatory
+                "table-type": "MERGE_ON_READ",  # <-- enable merge-on-read
+                "identifier-field-ids": "1",
+                "write.format.default": "parquet",
+                "write.parquet.compression-codec": "zstd",
+                "write.partition.path-style": "hierarchical",   # hierarchical & directory
+                "write.sort.order": "batch_id ASC, store_code, bill_no, bill_date",
+                "write.target-file-size-bytes": "268435456"
+            },
+        )
+        print(f"✅ Created Iceberg table: {table_identifier}")
+
+        # Step 6: Return confirmation
+        return {
+            "status": "created",
+            "table": table_identifier,
+            "schema_fields": [f.name for f in transaction_data_schema.fields],
+
+        }
+
+    except TableAlreadyExistsError:
+
+        table = catalog.load_table(table_identifier)
+        snapshot = table.current_snapshot()
+        total_records = snapshot.summary.get("total-records", 0) if snapshot else 0
+
+        return {
+            "status": "exists",
+            "table": table_identifier,
+            "total_records": total_records
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Table creation failed: {str(e)}")
+
+
+@router.post("/rename")
 def rename_table(
     namespace: str = Query(..., description="Namespace containing the table"),
     old_table_name: str = Query(..., description="Current table name (e.g. 'transactions')"),
@@ -157,7 +291,7 @@ def rename_table(
 
 
 
-@router.delete("/table/delete")
+@router.delete("/delete")
 def delete_table(
     namespace: str = Query(..., description="Namespace of the table"),
     table_name: str = Query(..., description="Name of the table to drop"),

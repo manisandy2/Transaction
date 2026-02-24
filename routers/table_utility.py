@@ -36,7 +36,7 @@ def clean_rows(
         field_overrides: Dict[str, tuple]
     ) -> List[Dict[str, Any]]:
     """
-    Clean and normalize row data for schema compliance.
+    Clean and normalize row data for schema-data compliance.
     """
     dt_formats = [
         "%Y-%m-%d %H:%M:%S",
@@ -222,3 +222,160 @@ def process_chunk(chunk: List[Dict[str, Any]], arrow_schema: pa.Schema) -> Tuple
         processed_rows.append(converted_row)
 
     return pa.Table.from_pylist(processed_rows, schema=arrow_schema), row_errors
+
+def parse_date(val):
+    if isinstance(val, date):
+        return val
+
+    if not val:
+        return None
+
+    formats = ["%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y"]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(val.strip(), fmt).date()
+        except ValueError:
+            continue
+
+    return None
+
+
+def parse_timestamp(val, bill_date=None):
+    if isinstance(val, datetime):
+        return val
+    
+    if not val:
+        return None
+
+    val = val.strip()
+
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%H:%M:%S",
+    ]
+
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(val, fmt)
+
+            # If only time → combine with bill_date
+            if fmt == "%H:%M:%S":
+                if bill_date:
+                    return datetime.combine(bill_date, parsed.time())
+                return None
+
+            return parsed
+
+        except ValueError:
+            continue
+
+    return None
+
+def clean_bill_header(rows):
+
+    float_fields = [
+        "bill_item_gross_amount",
+        "bill_item_total_discount",
+        "bill_item_total_tax",
+        "bill_item_net_amount",
+        "bill_total_trade_deduction",
+        "bill_total_trade_addition",
+        "bill_grand_total",
+        "bill_cancel_amount",
+    ]
+
+    date_fields = [
+        "bill_date",
+        "bill_refference_date",
+        "bill_cancel_date",
+        "bill_modify_date",
+        "customer_dob",
+        "customer_doa",
+    ]
+
+    timestamp_fields = [
+        "bill_time",
+        "bill_cancel_time",
+        "bill_modify_time",
+    ]
+
+    for row in rows:
+
+        # Trim strings
+        for k, v in row.items():
+            if isinstance(v, str):
+                row[k] = v.strip() or None
+
+        row["bill_date"] = parse_date(row.get("bill_date"))
+        # Float conversion
+        for field in float_fields:
+            val = row.get(field)
+            if val not in (None, ""):
+                row[field] = float(val)
+
+        # Timestamp conversion
+        for field in timestamp_fields:
+            val = row.get(field)
+            if val:
+                row[field] = datetime.strptime(val, "%Y-%m-%d %H:%M:%S")
+
+        # Date conversion
+        for field in date_fields:
+            val = row.get(field)
+            if val:
+                row[field] = datetime.strptime(val, "%Y-%m-%d").date()
+    return rows
+
+def clean_bill_items(rows):
+
+    float_fields = [
+        "item_gross_rate",
+        "item_inctax_rate",
+        "item_gross_amount",
+        "item_taxable_amount",
+        "item_tax",
+        "item_net_amount",
+        "item_discount1",
+        "item_discount2",
+        "item_cgst_perc",
+        "item_cgst",
+        "item_sgst_perc",
+        "item_sgst",
+        "item_igst_perc",
+        "item_igst",
+    ]
+
+    int_fields = [
+        "item_sno",
+        "item_quantity",
+    ]
+
+    for row in rows:
+
+        # Trim strings
+        for k, v in row.items():
+            if isinstance(v, str):
+                row[k] = v.strip() or None
+        row["bill_date"] = parse_date(row.get("bill_date"))
+
+        # Integer conversion
+        for field in int_fields:
+            val = row.get(field)
+            if val not in (None, ""):
+                row[field] = int(float(val))
+
+        # Float conversion
+        for field in float_fields:
+            val = row.get(field)
+            if val not in (None, ""):
+                row[field] = float(val)
+
+        # Date conversion
+        if row.get("bill_date"):
+            row["bill_date"] = datetime.strptime(
+                row["bill_date"], "%Y-%m-%d"
+            ).date()
+
+    return rows
