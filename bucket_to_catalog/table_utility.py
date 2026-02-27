@@ -36,7 +36,7 @@ def clean_rows(
         field_overrides: Dict[str, tuple]
     ) -> List[Dict[str, Any]]:
     """
-    Clean and normalize row data for schema compliance.
+    Clean and normalize row data for schema-data compliance.
     """
     dt_formats = [
         "%Y-%m-%d %H:%M:%S",

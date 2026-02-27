@@ -77,7 +77,7 @@ def clean_rows(
     field_overrides: Optional[Dict[str, tuple]] = None
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Clean and normalize row data for hub_masters schema compliance.
+    Clean and normalize row data for hub_masters schema-data compliance.
 
     Args:
         rows: List of row dictionaries.
