@@ -13,6 +13,7 @@ from bucket_to_catalog.error_handler import handle_ingestion_error
 from bucket_to_catalog.read_bucket import list_json_files,iter_json_files,update_last_pri_id,get_last_value,get_last_column_name
 from core.r2_client import get_r2_client
 from routers.bucket_to_r2Catalog import *
+from datetime import datetime,timedelta
 import json
 import psutil
 import os
@@ -162,7 +163,7 @@ def convert_column_json_to_rows(data: dict) -> list:
     return rows
 
 
-from datetime import datetime,timedelta
+
 
 
 def build_history_prefix(date: datetime = None) -> str:
@@ -589,12 +590,13 @@ def insert_transaction_between_range():
     namespace = "POS_Transactions"
     table_name = "Transaction_vars"
     bucket = "pos-transaction-imei"
-    prefix = build_yesterday_history_prefix()
+    # prefix = build_yesterday_history_prefix()
+    prefix = "history/2026/03/01/"
     batch_size = 200
     last_value = ""
     start_time = time.perf_counter()
     print_memory("start")
-
+    print("Start-time:",start_time)
     catalog = get_catalog_client()
     print_memory("connect client")
     table = catalog.load_table(f"{namespace}.{table_name}")
@@ -603,7 +605,7 @@ def insert_transaction_between_range():
     print_memory("after arrow")
     print_memory("before current_pri_id")
     # current_pri_id = 42826181
-    current_pri_id = get_last_value("pos_transactions", "ingestion_tracking")
+    current_pri_id = get_last_value("pos_transactions", "Transaction_vars")
     print(f"current_pri_id: {current_pri_id}")
     # current_pri_id = get_last_column_name("pos_transactions", "ingestion_tracking")
     print(f"current_pri_id: {current_pri_id}")
@@ -661,7 +663,7 @@ def insert_transaction_between_range():
     total_time = time.perf_counter() - start_time
 
     print(f"Inserted {total_inserted} rows in {total_time:.2f} seconds")
-
+    print("End-time:", total_time)
     return {
         "success": True,
         "files_processed": total_files,

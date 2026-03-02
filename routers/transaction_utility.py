@@ -346,7 +346,8 @@ logger = logging.getLogger(__name__)
 # ]
 #########################
 transaction_schema = [
-        NestedField(1, "pri_id", StringType(),required=True),
+        NestedField(1, "pri_id", LongType(),required=True),
+
         NestedField(2, "store_code__c", StringType()),
         NestedField(3, "Branch_Name__c", StringType()),
         NestedField(4, "customerId", StringType()),
@@ -550,7 +551,9 @@ transaction_schema = [
         # NestedField(201, "bill_datetime", DateType()),
         NestedField(200, "created_At", TimestampType()),
         NestedField(201, "bill_datetime", TimestampType()),
-        NestedField(202, "batch_id", StringType()),
+        NestedField(202, "pri_id_uuid", StringType()),
+        NestedField(203, "batch_id", StringType()),
+
     ]
 
 FIELD_OVERRIDES = {

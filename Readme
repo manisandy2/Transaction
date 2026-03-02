@@ -1,0 +1,10 @@
+python3.11 --version
+brew install python@3.11
+python3.11 --version
+python3.11 -m venv venv311
+source venv311/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+python3 -m fastapi dev
+
+python3 -m durai.r2_insert

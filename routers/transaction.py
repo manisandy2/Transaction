@@ -15,11 +15,11 @@ url_prefix = "Transaction"
 
 logger = get_logger("Transaction")
 
-router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction"])
+router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction Range"])
 
 # mysql | range | chunk_size | multithreading | arrow | append
 @router.post("/ingest/mysql-range")
-def insert_transaction_between_range(
+def transaction_range_between(
         start_range: int = Query(0, description="Start row offset for MySQL data fetch"),
         end_range: int = Query(100, description="End row offset for MySQL data fetch"),
         chunk_size: int = Query(10000, description="Chunk size for processing"),
@@ -148,7 +148,7 @@ def insert_transaction_between_range(
             # --- CONVERT ---
             t2 = time.time()
             try:
-                # Infer schema from check first row of this batch
+                # Infer schema-data from check first row of this batch
                 iceberg_schema_obj, arrow_schema_obj = schema(
                     rows[0],
                     required_fields=REQUIRED_FIELDS,

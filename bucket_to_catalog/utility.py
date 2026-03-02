@@ -9,7 +9,11 @@ from pyiceberg.types import (
 )
 from datetime import datetime, date
 from pyiceberg.schema import Schema
-
+from core.r2_client import get_r2_client
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import psutil
+from datetime import datetime,timedelta
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -310,3 +314,157 @@ def process_chunk(chunk, arrow_schema):
     # print(" Example converted_row:", processed_rows[0] if processed_rows else "EMPTY")
 
     return pa.Table.from_pylist(processed_rows, schema=arrow_schema)
+
+def print_memory(stage=""):
+    process = psutil.Process(os.getpid())
+    mem_info = process.memory_info()
+
+    rss_mb = mem_info.rss / (1024 * 1024)   # actual memory used
+    # vms_mb = mem_info.vms / (1024 * 1024)   # virtual memory
+
+    # print(f"🧠 Memory [{stage}] -> RSS: {rss_mb:.2f} MB | VMS: {vms_mb:.2f} MB")
+    print(f"🧠 Memory [{stage}] -> RSS: {rss_mb:.2f} MB")
+
+def build_history_prefix(date: datetime = None) -> str:
+    if date is None:
+        date = datetime.utcnow()
+
+    return f"history/{date.year:04d}/{date.month:02d}/{date.day:02d}/"
+
+def build_yesterday_history_prefix() -> str:
+    """
+    Generate R2 history prefix for yesterday.
+    Format: history/YYYY/MM/DD/
+    """
+    yesterday = datetime.utcnow() - timedelta(days=1)
+
+    return f"history/{yesterday.year:04d}/{yesterday.month:02d}/{yesterday.day:02d}/"
+
+def convert_column_json_to_rows(data: dict) -> list:
+
+    # print("convert column json to rows")
+
+    if not isinstance(data, dict):
+        # print("is not dict")
+        return []
+
+    cleaned = {}
+
+    for key, value in data.items():
+
+        # unwrap [[...]]
+        if isinstance(value, list) and len(value) == 1 and isinstance(value[0], list):
+            cleaned[key] = value[0]
+        else:
+            cleaned[key] = value
+
+    # Detect column-style lists
+    list_lengths = [
+        len(v) for v in cleaned.values()
+        if isinstance(v, list)
+    ]
+
+    # print("list_lengths:", list_lengths)
+
+    # 🔥 FIX: If no list found → treat as single row
+    if not list_lengths:
+        # print("No column lists found → treating as single row")
+        return [cleaned]
+
+    row_count = max(list_lengths)
+
+    rows = []
+
+    for i in range(row_count):
+        row = {}
+
+        for col, values in cleaned.items():
+
+            if isinstance(values, list):
+                row[col] = values[i] if i < len(values) else None
+            else:
+                row[col] = values
+
+        rows.append(row)
+
+    return rows
+
+def extract_rows_from_json(raw_data):
+    """
+    Convert different JSON formats into list[dict]
+    """
+    # print("start process")
+    # Case 1: Already list of rows
+    if isinstance(raw_data, list):
+        # print("list")
+        return raw_data
+
+    # Case 2: {"data": [...]}
+    if isinstance(raw_data, dict) and "data" in raw_data:
+        # print("dict")
+        if isinstance(raw_data["data"], list):
+            return raw_data["data"]
+
+    # Case 3: Column-based JSON
+    if isinstance(raw_data, dict):
+        # print("dict 01")
+        return convert_column_json_to_rows(raw_data)
+
+    return []
+
+def process_batch(executor, batch_keys, bucket, table,
+                  arrow_schema, current_pri_id ):
+
+    batch_rows = []
+    seen_batch_ids = set()
+
+    futures = [
+        executor.submit(
+            get_r2_client().get_object,
+            Bucket=bucket,
+            Key=key
+        )
+        for key in batch_keys
+    ]
+
+    for future in as_completed(futures):
+        try:
+            obj = future.result()
+            raw_data = json.loads(obj["Body"].read())
+            rows = extract_rows_from_json(raw_data)
+
+            for row in rows:
+                uuid_val = row.get("pri_id")
+                if not uuid_val or uuid_val in seen_batch_ids:
+                    continue
+
+                current_pri_id += 1
+                row["pri_id_backup"] = current_pri_id
+                row["pri_id"] = uuid_val
+                # print(row["pri_id_backup"])
+                batch_rows.append(row)
+                seen_batch_ids.add(uuid_val)
+
+        except Exception as e:
+            print(f"File processing error: {e}")
+
+    if not batch_rows:
+        return 0
+
+    cleaned = clean_rows(
+        rows=batch_rows,
+        boolean_fields=BOOLEAN_FIELDS,
+        timestamps_fields=TIMESTAMP_FIELDS,
+        field_overrides=FIELD_OVERRIDES
+    )
+
+    arrow_table, errors = process_chunk(cleaned, arrow_schema)
+
+    if arrow_table and arrow_table.num_rows > 0:
+        table.append(arrow_table)
+        inserted = arrow_table.num_rows
+    else:
+        inserted = 0
+
+    del batch_rows, cleaned, arrow_table
+    return inserted

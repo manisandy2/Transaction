@@ -154,7 +154,7 @@ class ErrorHandler:
             }
     
     def _create_error_table_schema(self) -> Schema:
-        """Create Iceberg schema for error table"""
+        """Create Iceberg schema-data for error table"""
         return Schema(
             NestedField(1, "original_table", StringType(), required=True),
             NestedField(2, "error_type", StringType(), required=True),

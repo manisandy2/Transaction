@@ -5,6 +5,7 @@ from pyiceberg.types import StringType, LongType, DateType,TimestampType
 import logging
 from pyiceberg.exceptions import NamespaceAlreadyExistsError, NoSuchTableError, ValidationError
 from sqlalchemy.sql.sqltypes import NullType
+from fastapi import status
 
 from core.catalog_client import get_catalog_client
 from fastapi import APIRouter,Query,HTTPException
@@ -24,7 +25,7 @@ def list_schema(
         catalog = get_catalog_client()
         table = catalog.load_table(f"{namespace}.{table_name}")
 
-        return {"status": "success", "schema": table.schema().fields}
+        return {"status": "success", "status_code": status.HTTP_200_OK, "schema-data": table.schema().fields}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -44,7 +45,7 @@ def create_table(
 
         schema = Schema(*fields)
         catalog.create_table(f"{namespace}.{table_name}", schema=schema)
-        return {"status": "success", "message": f"Table '{table_name}' created successfully."}
+        return {"status": "success","state_code":status.HTTP_201_CREATED ,"message": f"Table '{table_name}' created successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -63,11 +64,11 @@ def update_schema(
 
         old_field = next((f for f in table.schema().fields if f.name.lower() == column_name.lower()), None)
 
-        print("#"*100)
+        # print("#"*100)
         if not old_field:
             raise HTTPException(status_code=404, detail=f"Column '{column_name}' not found")
 
-        # Map string type to Iceberg type
+        # Map string type to Iceberg_type
         type_map = {
             "string": StringType(),
             "long": LongType(),
@@ -92,12 +93,13 @@ def update_schema(
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Schema update failed: {str(e)}")
 
-            # Reload table to get new schema
+            # Reload table to get new schema-data
         updated_table = catalog.load_table(table_identifier)
         new_field = next((f for f in updated_table.schema().fields if f.name.lower() == column_name.lower()), None)
 
         return {
             "status": "success",
+            "state_code": status.HTTP_200_OK,
             "column": column_name,
             "old_type": str(old_field.field_type),
             "new_type": str(new_field.field_type),
@@ -113,6 +115,6 @@ def delete_table(namespace: str = Query(...), table_name: str = Query(...)):
     try:
         catalog = get_catalog_client()
         catalog.drop_table(f"{namespace}.{table_name}")
-        return {"status": "success", "message": f"Table '{table_name}' deleted successfully."}
+        return {"status": "success","state_code": status.HTTP_200_OK, "message": f"Table '{table_name}' deleted successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

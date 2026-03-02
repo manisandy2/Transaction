@@ -7,8 +7,10 @@ from pyiceberg.types import (
     BooleanType, LongType, DoubleType, DateType, IntegerType,
     TimestampType, StringType, NestedField, FloatType
 )
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from pyiceberg.schema import Schema
+from fastapi import HTTPException
+from core.catalog_client import *
 
 
 logger = logging.getLogger(__name__)
@@ -77,7 +79,7 @@ def clean_rows(
     field_overrides: Optional[Dict[str, tuple]] = None
     ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Clean and normalize row data for hub_masters schema compliance.
+    Clean and normalize row data for hub_masters schema-data compliance.
 
     Args:
         rows: List of row dictionaries.
@@ -310,3 +312,56 @@ def process_chunk(chunk, arrow_schema):
     # print(" Example converted_row:", processed_rows[0] if processed_rows else "EMPTY")
 
     return pa.Table.from_pylist(processed_rows, schema=arrow_schema)
+
+def yesterday():
+    y = datetime.now() - timedelta(days=1)
+    return y.replace(hour=23, minute=59, second=59, microsecond=0)
+
+def get_last_date_value(namespace,table,column):
+    try:
+        catalog = get_catalog_client()
+        table_identifier = f"{namespace}.{table}"
+        iceberg_table = catalog.load_table(table_identifier)
+
+        # ---- FAST STRATEGY ----
+        # Read only 1 row sorted DESC (no full scan)
+        scan = (
+            iceberg_table.scan(
+                # row_filter=AlwaysTrue(),
+                selected_fields=[column]
+            )
+            .to_arrow()
+        )
+
+        if scan.num_rows == 0:
+            return {
+                "namespace": namespace,
+                "table": table,
+                "column": column,
+                "last_value": None
+            }
+
+        # Convert to pandas (small data only)
+        df = scan.to_pandas()
+        last_value = df[column].max()
+        # ✅ ADD +1 SECOND (only if datetime)
+        if isinstance(last_value, datetime):
+            last_value = last_value + timedelta(seconds=1)
+            last_value = last_value.isoformat()
+        else:
+            last_value = str(last_value)
+
+        return {
+            "namespace": namespace,
+            "table": table,
+            "column": column,
+            "last_value": (
+                last_value.isoformat()
+                if isinstance(last_value, (datetime,))
+                else str(last_value)
+            )
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch last date value: {str(e)}")

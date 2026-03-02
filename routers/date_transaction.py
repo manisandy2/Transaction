@@ -1,33 +1,38 @@
-from fastapi import APIRouter, Query, Body, HTTPException
+from fastapi import APIRouter, Query
 import time
 from .utility import schema,clean_rows
-from .transaction_utility import (REQUIRED_FIELDS, FIELD_OVERRIDES,
-                                  VARCHAR_FIELDS, TIMESTAMP_FIELDS, BOOLEAN_FIELDS)
+from .transaction_utility import *
 from core.catalog_client import *
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pyiceberg.catalog import NoSuchTableError
 from core.mysql_client import MysqlCatalog
 from core.logger import get_logger
 from .table_utility import process_chunk
 from .error_handler import handle_ingestion_error
+from .utility import yesterday,get_last_date_value
 from datetime import datetime
 
-url_prefix = "Transaction-date-between"
+# url_prefix = "Transaction"
 
-logger = get_logger("Transaction")
+# logger = get_logger("Transaction")
 
-router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction"])
+# router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction Date between"])
 
 
-@router.post("/ingest/mysql-date-range")
-def insert_transaction_between_date_range(
-    start_date: datetime = Query(..., description="Start datetime (YYYY-MM-DD HH:MM:SS)"),
-    end_date: datetime = Query(..., description="End datetime (YYYY-MM-DD HH:MM:SS)"),
-    chunk_size: int = Query(10000, description="Chunk size for processing"),
+# @router.post("/ingest/mysql-date-range")
+
+def transaction_date_between(
+    # start_date: datetime = Query(..., description="Start datetime (YYYY-MM-DD HH:MM:SS)"),
+    # end_date: datetime = Query(..., description="End datetime (YYYY-MM-DD HH:MM:SS)"),
+    # chunk_size: int = Query(10000, description="Chunk size for processing"),
 ):
     total_start = time.time()
     namespace, table_name = "POS_Transactions", "Transaction_vars"
     dbname = "Transaction"
+
+    last_vale = get_last_date_value(namespace,table_name,"created_At")
+    start_date = datetime.fromisoformat(last_vale["last_value"])
+    end_date = yesterday()
+    chunk_size = 10000
 
     # -------------------------
     # 1️⃣ Validate Date Range
@@ -83,7 +88,8 @@ def insert_transaction_between_date_range(
             print("count:",len(rows))
             time.sleep(30)
             total_rows_fetched += len(rows)
-
+            print("total_rows_fetched:",total_rows_fetched)
+            time.sleep(300)
             # -------------------------
             # 4️⃣ Clean Rows
             # -------------------------
@@ -155,3 +161,6 @@ def insert_transaction_between_date_range(
         "total_batches": batch_index,
         "total_time_sec": total_time
     }
+
+def run():
+    return transaction_date_between()

@@ -1,15 +1,11 @@
 from fastapi import APIRouter, HTTPException, Query
-from pyiceberg.catalog import load_catalog
 from pyiceberg.exceptions import NoSuchTableError
 from datetime import datetime
 from core.catalog_client import get_catalog_client
-# from pyiceberg.io import PyArrowFileIO
 from pyiceberg.io.pyarrow import PyArrowFileIO
-# from pyiceberg.manifest import ManifestList, DataFile
 from pyiceberg.manifest import read_manifest_list
 
-
-router = APIRouter(prefix="", tags=["Inspect"])
+router = APIRouter(prefix="/inspect", tags=["Inspect"])
 
 @router.get("/inspect-snapshots")
 def inspect_iceberg_snapshots(
@@ -421,7 +417,7 @@ def inspect_iceberg_files(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to inspect Iceberg files: {str(e)}")
 
-@router.get("/table-total/count")
+@router.get("/inspect-count")
 def iceberg_table_count(
     name_space: str = Query(default="POS_transactions", description="Iceberg namespace name"),
     table_name: str = Query(default="Transaction", description="Iceberg table name")

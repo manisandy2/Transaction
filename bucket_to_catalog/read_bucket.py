@@ -4,6 +4,7 @@ from core.r2_client import get_r2_client
 from core.catalog_client import get_catalog_client
 from datetime import datetime, timedelta
 import pyarrow as pa
+import psutil
 
 # def list_json_files(bucket: str, prefix: str):
 #     start = time.time()
@@ -122,32 +123,77 @@ def get_last_column_name(namespace, table_name,column_name):
 
 # get_last_pri_id("POS_Transactions", "Transaction_vars")
 
+# def iter_json_files(bucket: str, prefix: str):
+#     r2 = get_r2_client()
+#     continuation_token = None
+#     total_files = 0
+#
+#     while True:
+#         params = {
+#             "Bucket": bucket,
+#             "Prefix": prefix,
+#             "MaxKeys": 1000
+#         }
+#
+#         if continuation_token:
+#             params["ContinuationToken"] = continuation_token
+#
+#         response = r2.list_objects_v2(**params)
+#         contents = response.get("Contents", [])
+#         print(f"Fetched {len(contents)} keys from R2 page")
+#
+#
+#         for item in contents:
+#             key = item["Key"]
+#             if not key.endswith("/"):
+#                 yield key
+#
+#         if not resp.get("IsTruncated"):
+#             break
+#
+#         token = resp.get("NextContinuationToken")
 def iter_json_files(bucket: str, prefix: str):
+    """
+    Generator that streams JSON file keys from R2/S3
+    without loading full key list into memory.
+    """
+
     r2 = get_r2_client()
-    token = None
+    continuation_token = None
+    total_files = 0
 
     while True:
+
         params = {
             "Bucket": bucket,
             "Prefix": prefix,
-            "MaxKeys": 1000
+            "MaxKeys": 500
         }
 
-        if token:
-            params["ContinuationToken"] = token
+        if continuation_token:
+            params["ContinuationToken"] = continuation_token
 
-        resp = r2.list_objects_v2(**params)
+        response = r2.list_objects_v2(**params)
 
-        for item in resp.get("Contents", []):
+        contents = response.get("Contents", [])
+        print(f"Fetched {len(contents)} keys from R2 page")
+
+        for item in contents:
             key = item["Key"]
-            if not key.endswith("/"):
-                yield key
 
-        if not resp.get("IsTruncated"):
+            # Skip folder markers
+            if key.endswith("/"):
+                continue
+
+            total_files += 1
+            yield key
+
+        if not response.get("IsTruncated"):
             break
 
-        token = resp.get("NextContinuationToken")
+        continuation_token = response.get("NextContinuationToken")
 
+    print(f"Total streamed files: {total_files}")
 
 def get_last_value(namespace: str, table_name: str) -> int:
     """
@@ -167,13 +213,13 @@ def get_last_value(namespace: str, table_name: str) -> int:
         # Filter only this table
         scan = tracking_table.scan(
             row_filter=f"table_name = '{table_name}'",
-            selected_fields=["high_watermark"]
+            selected_fields=["pri_id_backup"]
         ).to_arrow()
 
         if scan.num_rows == 0:
             return 0
 
-        values = scan["high_watermark"].to_pylist()
+        values = scan["pri_id_backup"].to_pylist()
 
         # Convert to int and return max
         return max(int(v) for v in values if v is not None)

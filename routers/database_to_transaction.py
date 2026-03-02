@@ -79,10 +79,10 @@
 #
 #         converted_rows.append(row)
 #
-#     # ---------- Infer Iceberg / Arrow schema ----------
+#     # ---------- Infer Iceberg / Arrow schema-data ----------
 #     iceberg_schema, arrow_schema = infer_schema_from_record(rows[0])
 #     # print("Schema inference", schema_start)
-#     # ---------- Convert records to match Arrow schema ----------
+#     # ---------- Convert records to match Arrow schema-data ----------
 #     arrow_conv_start = time.time()
 #     # print("###"*50)
 #     # print("infer_schema Arrow conversion", )
@@ -94,7 +94,7 @@
 #     arrow_table_start = time.time()
 #
 #     try:
-#         arrow_table = pa.Table.from_pylist(converted_records, schema=arrow_schema)
+#         arrow_table = pa.Table.from_pylist(converted_records, schema-data=arrow_schema)
 #     except pa.lib.ArrowTypeError as e:
 #         # Debug row/field causing error
 #         for row_idx, row in enumerate(converted_records):
@@ -161,7 +161,7 @@
 #
 #         tbl = catalog.create_table(
 #             identifier=table_identifier,
-#             schema=iceberg_schema,
+#             schema-data=iceberg_schema,
 #             partition_spec=partition_spec,
 #             properties={"write.partition.path-style": "directory"},
 #         )
@@ -184,12 +184,12 @@
 #         "table": table_name,
 #         "rows_written": len(converted_records),
 #         "elapsed_seconds": round(elapsed, 2),
-#         "schema": [f.name for f in iceberg_schema.columns],
+#         "schema-data": [f.name for f in iceberg_schema.columns],
 #         "table_properties": getattr(tbl, "properties", {}),
 #     }
 # ############################################################################
 #
-# from pyiceberg.schema import Schema
+# from pyiceberg.schema-data import Schema
 # from pyiceberg.types import NestedField, StringType, IntegerType, DoubleType, DateType, TimestampType
 # from pyiceberg.partitioning import PartitionSpec
 # from pyiceberg.catalog import load_catalog
@@ -258,7 +258,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=table_identifier,
-# #         schema=transaction_schema,
+# #         schema-data=transaction_schema,
 # #         partition_spec=transaction_partition_spec,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -284,7 +284,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=(namespace, "customers"),
-# #         schema=customers_schema,
+# #         schema-data=customers_schema,
 # #         partition_spec=customers_partition,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -311,7 +311,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=(namespace, "items"),
-# #         schema=items_schema,
+# #         schema-data=items_schema,
 # #         partition_spec=items_partition,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -337,7 +337,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=(namespace, "complaints"),
-# #         schema=complaints_schema,
+# #         schema-data=complaints_schema,
 # #         partition_spec=complaints_partition,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -366,7 +366,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=(namespace, "returns"),
-# #         schema=returns_schema,
+# #         schema-data=returns_schema,
 # #         partition_spec=returns_partition,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -395,7 +395,7 @@
 # #
 # #     catalog.create_table(
 # #         identifier=(namespace, "online_orders"),
-# #         schema=online_orders_schema,
+# #         schema-data=online_orders_schema,
 # #         partition_spec=online_orders_partition,
 # #         properties={"write.partition.path-style": "directory"},
 # #     )
@@ -479,7 +479,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "transaction"),
-# #             schema=transaction_schema,
+# #             schema-data=transaction_schema,
 # #             partition_spec=transaction_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -510,7 +510,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "customers"),
-# #             schema=customers_schema,
+# #             schema-data=customers_schema,
 # #             partition_spec=customers_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -548,7 +548,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "items"),
-# #             schema=items_schema,
+# #             schema-data=items_schema,
 # #             partition_spec=items_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -579,7 +579,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "complaints"),
-# #             schema=complaints_schema,
+# #             schema-data=complaints_schema,
 # #             partition_spec=complaints_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -620,7 +620,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "returns"),
-# #             schema=returns_schema,
+# #             schema-data=returns_schema,
 # #             partition_spec=returns_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -661,7 +661,7 @@
 # #
 # #         catalog.create_table(
 # #             identifier=(namespace, "online_orders"),
-# #             schema=online_orders_schema,
+# #             schema-data=online_orders_schema,
 # #             partition_spec=online_orders_partition,
 # #             properties={"write.partition.path-style": "directory"},
 # #         )
@@ -739,10 +739,10 @@
 #     # print("rows", converted_rows)
 #     print("Bill_Date__c conversion",  time.time() - convert_start)
 #     schema_start = time.time()
-#     # ---------- Infer Iceberg / Arrow schema ----------
+#     # ---------- Infer Iceberg / Arrow schema-data ----------
 #     iceberg_schema, arrow_schema = infer_schema_from_record(rows[0])
 #     print("Schema inference", schema_start)
-#     # ---------- Convert records to match Arrow schema ----------
+#     # ---------- Convert records to match Arrow schema-data ----------
 #     arrow_conv_start = time.time()
 #     # converted_records = [convert_row(r, arrow_schema) for r in converted_rows]
 #     converted_records = [convert_column(r, arrow_schema) for r in converted_rows]
@@ -752,7 +752,7 @@
 #     arrow_table_start = time.time()
 #
 #     try:
-#         arrow_table = pa.Table.from_pylist(converted_records, schema=arrow_schema)
+#         arrow_table = pa.Table.from_pylist(converted_records, schema-data=arrow_schema)
 #     except pa.lib.ArrowTypeError as e:
 #         # Debug row/field causing error
 #         for row_idx, row in enumerate(converted_records):
@@ -802,7 +802,7 @@
 #         "table": table_name,
 #         "rows_written": len(converted_records),
 #         "elapsed_seconds": round(elapsed, 2),
-#         "schema": [f.name for f in iceberg_schema.columns],
+#         "schema-data": [f.name for f in iceberg_schema.columns],
 #         "table_properties": getattr(tbl, "properties", {}),
 #     }
 #
@@ -867,7 +867,7 @@
 #             )
 #
 #         # Validate columns
-#         schema_fields = {f.name for f in table.schema().fields}
+#         schema_fields = {f.name for f in table.schema-data().fields}
 #         for col in columns:
 #             if col not in schema_fields:
 #                 raise HTTPException(
@@ -875,7 +875,7 @@
 #                     detail={
 #                         "status": "error",
 #                         "error_code": "COLUMN_NOT_FOUND",
-#                         "message": f"Column '{col}' not found in schema",
+#                         "message": f"Column '{col}' not found in schema-data",
 #                         "data": [],
 #                         "status_code": 404
 #                     }

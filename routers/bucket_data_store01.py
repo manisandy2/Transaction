@@ -13,7 +13,7 @@ MAX_WORKERS = 16
 import concurrent.futures
 import math
 
-router = APIRouter(prefix="", tags=["bucket store"])
+router = APIRouter(prefix="", tags=["bucket store 01"])
 
 # --- CONFIG ---
 BATCH_SIZE = 1000

@@ -148,7 +148,7 @@ def insert_transaction_between_range(
             # --- CONVERT ---
             t2 = time.time()
             try:
-                # Infer schema from check first row of this batch
+                # Infer schema-data from check first row of this batch
                 iceberg_schema_obj, arrow_schema_obj = schema(
                     rows[0],
                     required_fields=REQUIRED_FIELDS,

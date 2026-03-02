@@ -13,7 +13,7 @@
 #         return None
 #
 # tables = read_parquet_file("downloads/parquet/00000-0-1879bcbb-661c-4261-b858-374a94a71f59.parquet")
-# print(tables.schema)
+# print(tables.schema-data)
 # print(tables.num_rows)
 
 import pandas as pd
