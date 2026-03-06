@@ -1,14 +1,16 @@
 import boto3, os, time
-from decouple import config
+from dotenv import load_dotenv
 from botocore.client import Config
+
+load_dotenv(".env")
 
 
 def r2_client():
     try:
         return boto3.client("s3",
-                            endpoint_url=config("ENDPOINT"),
-                            aws_access_key_id=config("ACCESS_KEY_ID"),
-                            aws_secret_access_key=config("SECRET_ACCESS_KEY"),
+                            endpoint_url=os.getenv("ENDPOINT"),
+                            aws_access_key_id=os.getenv("ACCESS_KEY_ID"),
+                            aws_secret_access_key=os.getenv("SECRET_ACCESS_KEY"),
                             config=Config(signature_version="s3v4"),
                             region_name="auto"
                             )
@@ -48,8 +50,15 @@ def list_json_files(bucket: str, prefix: str):
     return keys
 
 
-BUCKET = "pos-transaction-imei"
-# PREFIX = "mobile/9148215410/transferred/"
-PREFIX = "imei/354393356305954/id/"
+# BUCKET = "pos-transaction-imei"
+# # PREFIX = "mobile/9148215410/transferred/"
+# PREFIX = "imei/354393356305954/id/"
 
-list_json_files(bucket=BUCKET, prefix=PREFIX)
+
+# list_json_files(bucket=BUCKET, prefix=PREFIX)
+
+if __name__ == "__main__":
+    BUCKET = "pos-transaction-imei"
+    # # PREFIX = "mobile/9148215410/transferred/"
+    PREFIX = "history/2026/03/04/"
+    list_json_files(bucket=BUCKET, prefix=PREFIX)

@@ -11,27 +11,27 @@ from .error_handler import handle_ingestion_error
 from .utility import yesterday,get_last_date_value
 from datetime import datetime
 
-# url_prefix = "Transaction"
+url_prefix = "Transaction"
 
 # logger = get_logger("Transaction")
 
-# router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction Date between"])
+router = APIRouter(prefix=f"/{url_prefix}", tags=["Transaction Date between"])
 
 
-# @router.post("/ingest/mysql-date-range")
+@router.post("/ingest/mysql-date-range")
 
 def transaction_date_between(
-    # start_date: datetime = Query(..., description="Start datetime (YYYY-MM-DD HH:MM:SS)"),
-    # end_date: datetime = Query(..., description="End datetime (YYYY-MM-DD HH:MM:SS)"),
-    # chunk_size: int = Query(10000, description="Chunk size for processing"),
+    start_date: datetime = Query(..., description="Start datetime (YYYY-MM-DD HH:MM:SS)"),
+    end_date: datetime = Query(..., description="End datetime (YYYY-MM-DD HH:MM:SS)"),
+    chunk_size: int = Query(10000, description="Chunk size for processing"),
 ):
     total_start = time.time()
     namespace, table_name = "POS_Transactions", "Transaction_vars"
     dbname = "Transaction"
 
     last_vale = get_last_date_value(namespace,table_name,"created_At")
-    start_date = datetime.fromisoformat(last_vale["last_value"])
-    end_date = yesterday()
+    # start_date = datetime.fromisoformat(last_vale["last_value"])
+    # end_date = yesterday()
     chunk_size = 10000
 
     # -------------------------

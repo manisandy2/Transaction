@@ -7,4 +7,4 @@ pip install --upgrade pip
 pip install -r requirements.txt
 python3 -m fastapi dev
 
-python3 -m durai.r2_insert
+python3 -m bucket_to_catalog.r2_insert_backup # insert_transaction_between_range

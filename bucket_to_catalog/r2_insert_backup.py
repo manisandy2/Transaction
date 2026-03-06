@@ -591,8 +591,8 @@ def insert_transaction_between_range():
     table_name = "Transaction_vars"
     bucket = "pos-transaction-imei"
     # prefix = build_yesterday_history_prefix()
-    prefix = "history/2026/03/01/"
-    batch_size = 200
+    prefix = "history/2026/03/05/"
+    batch_size = 2000
     last_value = ""
     start_time = time.perf_counter()
     print_memory("start")

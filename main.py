@@ -44,7 +44,7 @@ app.include_router(transaction_namespace.router)
 app.include_router(transaction_table.router)
 # app.include_router(transaction_meta_data.router)
 app.include_router(data_range_insert.router)
-# app.include_router(date_between_insert.router)
+app.include_router(date_between_insert.router)
 app.include_router(filters.router)
 app.include_router(columns.router) # done
 # app.include_router(multipart_data.router)
