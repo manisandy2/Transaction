@@ -13,7 +13,6 @@ from bucket_to_catalog.error_handler import handle_ingestion_error
 from bucket_to_catalog.read_bucket import list_json_files,iter_json_files,update_last_pri_id,get_last_value,get_last_column_name
 from core.r2_client import get_r2_client
 from routers.bucket_to_r2Catalog import *
-from datetime import datetime,timedelta
 import json
 import psutil
 import os
@@ -590,9 +589,8 @@ def insert_transaction_between_range():
     namespace = "POS_Transactions"
     table_name = "Transaction_vars"
     bucket = "pos-transaction-imei"
-    # prefix = build_yesterday_history_prefix()
-    prefix = "history/2026/03/05/"
-    batch_size = 2000
+    prefix = build_yesterday_history_prefix()
+    batch_size = 200
     last_value = ""
     start_time = time.perf_counter()
     print_memory("start")
